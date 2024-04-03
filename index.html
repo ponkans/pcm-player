@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>AudioWorkletProcessor play PCM raw buffer</title>
+</head>
+
+<body>
+  <h1>AudioWorkletProcessor play PCM raw buffer</h1>
+  <div id="container" style="width: 400px; margin-left: 20px;">
+    <button onclick="loadPCM()">PlayPCM</button>
+  </div>
+
+  <script>
+    const options = {
+      inputCodec: "Int16",
+      channels: 2,
+      sampleRate: 44100
+    };
+
+    async function loadPCM() {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      await audioContext.audioWorklet.addModule('pcm-processor.js');
+      let bypasser = new AudioWorkletNode(audioContext, 'pcm-processor', {
+        numberOfOutputs: 1,
+        outputChannelCount: [options.channels]
+      });
+      bypasser.connect(audioContext.destination);
+
+      bypasser.port.postMessage({
+        type: 'OPTIONS',
+        options,
+      });
+
+      const ws = new WebSocket('ws://127.0.0.1:8899');
+      ws.binaryType = 'arraybuffer';
+      ws.addEventListener('message', function (event) {
+        bypasser.port.postMessage({
+          type: 'PCM_RAW_BUFFER',
+          buffer: event.data,
+        });
+      });
+    }
+  </script>
+</body>
+
+</html>
